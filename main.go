@@ -20,7 +20,7 @@ type Download struct {
 
 // Get new Request
 func (d Download) getNewRequest(method string) (*http.Request, error) {
-	r, err := http.NewRequest(
+	newRequest, err := http.NewRequest(
 		method,
 		d.URL,
 		nil,
@@ -30,8 +30,8 @@ func (d Download) getNewRequest(method string) (*http.Request, error) {
 		return nil, err
 	}
 
-	r.Header.Set("User-Agent", "Silly Download Manager v001")
-	return r, nil
+	newRequest.Header.Set("User-Agent", "Silly Download Manager v001")
+	return newRequest, nil
 }
 
 func (d Download) mergeFiles(sections [][2]int) error {
@@ -41,13 +41,13 @@ func (d Download) mergeFiles(sections [][2]int) error {
 	}
 	defer targetFile.Close()
 
-	for i := range sections {
-		tmpFileName := fmt.Sprintf("section-%v.tmp", i)
-		b, err := ioutil.ReadFile(tmpFileName)
+	for index := range sections {
+		tmpFileName := fmt.Sprintf("section-%v.tmp", index)
+		tmpBytes, err := ioutil.ReadFile(tmpFileName)
 		if err != nil {
 			return err
 		}
-		bytesMerged, err := targetFile.Write(b)
+		bytesMerged, err := targetFile.Write(tmpBytes)
 		if err != nil {
 			return err
 		}
@@ -73,15 +73,19 @@ func (d Download) downloadSection(tempFileIndex int, content [2]int) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Downloaded %v bytes for section %v: %v\n", responseForRequest.Header.Get("Content-length"), tempFileIndex, content)
+	fmt.Printf(
+		"Downloaded %v bytes for section %v: %v\n",
+		responseForRequest.Header.Get("Content-length"),
+		tempFileIndex,
+		content)
 
-	b, err := ioutil.ReadAll(responseForRequest.Body)
+	tmpBytes, err := ioutil.ReadAll(responseForRequest.Body)
 	if err != nil {
 		return err
 	}
 	err = ioutil.WriteFile(
 		fmt.Sprintf("section-%v.tmp", tempFileIndex),
-		b,
+		tmpBytes,
 		os.ModePerm,
 	)
 	if err != nil {
@@ -94,12 +98,12 @@ func (d Download) downloadSection(tempFileIndex int, content [2]int) error {
 func (d Download) Do() error {
 	fmt.Println(`Making connections`)
 
-	r, err := d.getNewRequest("HEAD")
+	request, err := d.getNewRequest("HEAD")
 	if err != nil {
 		return err
 	}
 
-	resp, err := http.DefaultClient.Do(r)
+	resp, err := http.DefaultClient.Do(request)
 	if err != nil {
 		return err
 	}
@@ -115,33 +119,33 @@ func (d Download) Do() error {
 	fmt.Printf("Size is %v bytes\n", size)
 
 	var sections = make([][2]int, d.TotalSections)
-	eachSize := size / d.TotalSections + 1
+	eachSize := size/d.TotalSections + 1
 	fmt.Printf("Each size is %v bytes\n", eachSize)
 
-	for i := range sections {
-		if i == 0 {
-			sections[i][0] = 0
+	for index := range sections {
+		if index == 0 {
+			sections[index][0] = 0
 		} else {
-			sections[i][0] = sections[i-1][1] + 1
+			sections[index][0] = sections[index-1][1] + 1
 		}
 
-		if i < d.TotalSections-1 {
-			sections[i][1] = sections[i][0] + eachSize
+		if index < d.TotalSections-1 {
+			sections[index][1] = sections[index][0] + eachSize
 		} else {
-			sections[i][1] = size - 1
+			sections[index][1] = size - 1
 		}
 	}
 
 	log.Println(sections)
 
 	var wg sync.WaitGroup
-	for i, section := range sections {
+	for index, section := range sections {
 		wg.Add(1)
-		i := i
+		index := index
 		section := section
 		go func() {
 			defer wg.Done()
-			err := d.downloadSection(i, section)
+			err := d.downloadSection(index, section)
 			if err != nil {
 				panic(err)
 			}
@@ -156,7 +160,7 @@ func main() {
 	startTime := time.Now()
 
 	d := Download{
-		URL:           ``,
+		URL:           `http://oss.lanjingdejia.com/file/2018/9/9ad24578de98433a8005fc6484f57985-Designing.DataIntensive.Applications.pdf`,
 		TargetPath:    "/tmp/targetFile",
 		TotalSections: 10,
 	}
