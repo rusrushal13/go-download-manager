@@ -156,7 +156,7 @@ func main() {
 	startTime := time.Now()
 
 	d := Download{
-		URL:           `http://oss.lanjingdejia.com/file/2018/9/9ad24578de98433a8005fc6484f57985-Designing.DataIntensive.Applications.pdf`,
+		URL:           ``,
 		TargetPath:    "/tmp/targetFile",
 		TotalSections: 10,
 	}
